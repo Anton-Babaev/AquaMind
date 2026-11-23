@@ -14,3 +14,6 @@ configs/*.local.yaml
 # IDE
 .idea/
 .vscode/
+
+# Логи запуска
+*.log

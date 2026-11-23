@@ -5,6 +5,23 @@
 > Работают два человека. **Наша зона — Edge-контроллер на Raspberry Pi (Go).**
 > Backend (PostgreSQL, Telegram) — зона второго разработчика (Роман).
 
+## Где мы сейчас (для продолжения в новом чате)
+
+- **Последний коммит:** `4b3e1e0` — «feat(edge): GPIO-адаптер на go-rpio +
+  выбор hardware по конфигу (Этап 4)». Рабочее дерево чистое.
+- **Готово:** Этапы 1–4 (домен+политики, Control+Poller+console, SQLite+Sync+
+  Backend-заглушка, GPIO на Pi + README + инструкция по Pi).
+- **Проверки зелёные:** `go build ./...`, `go test ./...`, `go vet ./...`;
+  `make build-pi` собирает `bin/edge-pi` (~16 МБ).
+- **Следующий шаг (на выбор):**
+  1. **Safety** — `usecase/safety` + `delivery/watchdog` (Safe Mode по
+     устареванию данных / ошибке датчика). В плане это п.5.
+  2. **Settings HTTP** — `usecase/settings` + `delivery/http` + middleware
+     «только LAN» (смена порогов по сети).
+- **Окружение:** терминал — PowerShell (не bash). Команды писать под PowerShell.
+- **Важно:** `hardware: gpio` на ноутбуке даёт понятную ошибку (заглушка
+  `gpio_other.go`) — это ожидаемо; для разработки на ноутбуке `hardware: console`.
+
 ## Цель MVP (текущий этап)
 
 Устройство читает показания датчиков **из CSV-файла** (имитация), применяет

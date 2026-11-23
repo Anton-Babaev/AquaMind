@@ -49,7 +49,7 @@ func (w *Worker) Run(ctx context.Context) {
 			return
 		case <-ticker.C:
 			if err := w.syncOnce(ctx); err != nil {
-				log.Printf("syncworker: %v", err)
+				log.Printf("синхронизация: %v", err)
 			}
 		}
 	}
