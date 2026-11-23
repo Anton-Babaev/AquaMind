@@ -86,14 +86,30 @@ flow_min: 5.0
 - `cmd/edge/main.go` — обновлён: SQLite + SyncWorker в горутине
 - Проверено вживую: батчи принимаются; дедуп: повтор → accepted=0, duplicates=1
 
-### ⏳ Этап 4 — GPIO на Pi + настройка железа (СЛЕДУЮЩИЙ)
-Задачи:
-1. `internal/edge/adapter/hardware/gpio/` — адаптер на `go-rpio` (BCM 17/27/22),
-   реализует порт `Actuators` (тот же интерфейс, что console).
-2. Выбор адаптера по конфигу: `hardware: console|gpio` в configs/edge.yaml.
-3. Инструкция по настройке Pi: прошивка флешки, первый запуск, SSH, установка Go,
-   копирование кода, `make build-pi`, systemd-сервис, подключение светодиодов.
-4. Кросс-компиляция `make build-pi` (GOOS=linux GOARCH=arm GOARM=7) и перенос на Pi.
+### ✅ Этап 4 — GPIO на Pi + настройка железа (готово)
+- `internal/edge/adapter/hardware/gpio/` — адаптер на `go-rpio` (BCM 17/27/22),
+  реализует порт `Actuators` (тот же интерфейс, что console):
+  - `gpio.go` — общая (тестируемая) логика: `Pins`, `LEDs.Apply`, `LEDs.Close`,
+    интерфейс `pinBackend`; `DefaultPins` = 17/27/22.
+  - `gpio_linux.go` (build tag `linux`) — реальный backend на `go-rpio`
+    (`rpio.Open`, `Output`, `High/Low`, `Close`).
+  - `gpio_other.go` (build tag `!linux`) — заглушка для ноутбука: `New` возвращает
+    понятную ошибку «only available on linux/arm», чтобы `go build ./...` и
+    `go test ./...` проходили на Windows/macOS без железа.
+  - `gpio_test.go` — 8 тестов на fake-backend (маппинг состояния → пины,
+    context, ошибки записи, Close гасит всё и идемпотентен).
+- Выбор адаптера по конфигу: `hardware: console|gpio` в `configs/edge.yaml`
+  (+ секция `gpio:` с пинами). Env-override: `AQUAMIND_HARDWARE`.
+  `config.Config` получил `Hardware HardwareKind` и `GPIOPins`; `validate()`
+  проверяет значение. `cmd/edge/main.go` — `buildActuators()` выбирает адаптер,
+  для gpio возвращает `Close()` (гасит светодиоды на SIGTERM).
+- Инструкция по настройке Pi: `docs/RASPBERRY_PI_SETUP.md` (прошивка флешки,
+  первый запуск, SSH, установка Go, копирование кода, `make build-pi`, права
+  на GPIO, подключение светодиодов, systemd, диагностика, чек-лист).
+- Кросс-компиляция `make build-pi` (GOOS=linux GOARCH=arm GOARM=7) — проверена,
+  `bin/edge-pi` ~16 МБ. `go-rpio` и `modernc.org/sqlite` — чистый Go, без CGO.
+- Проверено: `go build ./...`, `go test ./...`, `go vet ./...` — зелёные;
+  на ноутбуке `hardware: gpio` даёт понятную ошибку, `hardware: console` работает.
 
 ### Опционально (если успеем)
 - SafetyWatchdog (Safe Mode по устареванию данных) — `delivery/watchdog`
@@ -118,7 +134,8 @@ go run ./cmd/edge
 ```
 
 Env-переменные: `AQUAMIND_SCENARIO`, `AQUAMIND_POLL_INTERVAL`,
-`AQUAMIND_STORAGE`, `AQUAMIND_BACKEND_URL`, `AQUAMIND_SYNC_INTERVAL`.
+`AQUAMIND_STORAGE`, `AQUAMIND_BACKEND_URL`, `AQUAMIND_SYNC_INTERVAL`,
+`AQUAMIND_HARDWARE` (`console`|`gpio`).
 
 ## Поток загрузки на Pi
 

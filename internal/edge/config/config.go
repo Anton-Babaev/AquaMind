@@ -8,6 +8,16 @@ import (
 	"github.com/Anton-Babaev/AquaMind/internal/edge/domain"
 )
 
+// HardwareKind — тип адаптера выходов (светодиодов).
+type HardwareKind string
+
+const (
+	// HardwareConsole — «лампочки» в терминале (разработка на ноутбуке).
+	HardwareConsole HardwareKind = "console"
+	// HardwareGPIO — реальные светодиоды на Raspberry Pi через go-rpio.
+	HardwareGPIO HardwareKind = "gpio"
+)
+
 // Config — конфигурация Edge. Для Этапа 2 читаем подмножество полей
 // из configs/edge.yaml простым парсером без внешних зависимостей.
 // На Этапе 3+ заменим на полноценный YAML-парсер.
@@ -27,7 +37,19 @@ type Config struct {
 	RequestTimeout time.Duration
 	BatchSize      int
 
+	// Hardware — какой адаптер выходов использовать: console|gpio.
+	Hardware HardwareKind
+	// GPIOPins — раскладка BCM-пинов (используется только при Hardware=gpio).
+	GPIOPins GPIOPins
+
 	Thresholds domain.Thresholds
+}
+
+// GPIOPins — номера BCM-пинов светодиодов (см. docs/PROGRESS.md).
+type GPIOPins struct {
+	Heating int // 🟡 подогрев, GPIO17 / пин 11
+	Alarm   int // 🔴 тревога,  GPIO27 / пин 13
+	Normal  int // 🟢 норма,    GPIO22 / пин 15
 }
 
 // Default возвращает конфигурацию по умолчанию (совпадает с configs/edge.yaml).
@@ -43,6 +65,12 @@ func Default() Config {
 		SyncInterval:   10 * time.Second,
 		RequestTimeout: 5 * time.Second,
 		BatchSize:      100,
+		Hardware:       HardwareConsole,
+		GPIOPins: GPIOPins{
+			Heating: 17,
+			Alarm:   27,
+			Normal:  22,
+		},
 		Thresholds: domain.Thresholds{
 			TempLow:           22.0,
 			TempLowHysteresis: 1.0,
@@ -83,9 +111,26 @@ func Load() (Config, error) {
 		}
 		cfg.SyncInterval = d
 	}
+	if v := os.Getenv("AQUAMIND_HARDWARE"); v != "" {
+		cfg.Hardware = HardwareKind(v)
+	}
 
-	if err := cfg.Thresholds.Validate(); err != nil {
-		return cfg, fmt.Errorf("invalid thresholds: %w", err)
+	if err := cfg.validate(); err != nil {
+		return cfg, err
 	}
 	return cfg, nil
+}
+
+// validate проверяет корректность конфигурации.
+func (c Config) validate() error {
+	switch c.Hardware {
+	case HardwareConsole, HardwareGPIO:
+	default:
+		return fmt.Errorf("invalid hardware %q: want %q or %q", c.Hardware, HardwareConsole, HardwareGPIO)
+	}
+
+	if err := c.Thresholds.Validate(); err != nil {
+		return fmt.Errorf("invalid thresholds: %w", err)
+	}
+	return nil
 }

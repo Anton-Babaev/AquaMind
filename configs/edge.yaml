@@ -3,6 +3,18 @@
 
 client_id: edge-01
 
+# Адаптер выходов (светодиодов):
+#   console — «лампочки» в терминале (разработка на ноутбуке);
+#   gpio    — реальные светодиоды на Raspberry Pi через go-rpio.
+# На ноутбуке оставьте console; на Pi переключите на gpio.
+hardware: console
+
+# Раскладка BCM-пинов (используется только при hardware: gpio).
+gpio:
+  heating: 17   # 🟡 подогрев, физ. пин 11
+  alarm: 27     # 🔴 тревога,  физ. пин 13
+  normal: 22    # 🟢 норма,    физ. пин 15
+
 backend:
   url: "http://localhost:8080"
   sync_interval: 10s        # тик SyncWorker
