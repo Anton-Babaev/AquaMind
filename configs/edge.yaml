@@ -1,0 +1,45 @@
+# Конфигурация Edge-контроллера (Raspberry Pi 3 B+).
+# Значения порогов — [TBD], уточняются при реализации.
+
+client_id: edge-01
+
+backend:
+  url: "http://localhost:8080"
+  sync_interval: 10s        # тик SyncWorker
+  request_timeout: 5s
+  batch_size: 100           # максимум записей в одном пакете
+
+polling:
+  interval: 2s              # тик SensorPoller (демо: 1–5 с)
+
+safety:
+  interval: 1s              # тик SafetyWatchdog
+  stale_after: 10s          # данные старше — Safe Mode
+
+scenario:
+  path: "scenarios/day_cycle.csv"
+  speed: 60                 # ускорение времени (1 сек реального = N сек сценария)
+  loop: true
+
+storage:
+  path: "data/edge.db"      # SQLite (WAL)
+  busy_timeout: 5s
+  retention: 24h            # удаление отправленных записей старше
+
+control_plane:
+  listen: ":8081"
+  # Подсети, которым разрешён доступ к control plane (только LAN).
+  allowed_cidrs:
+    - "127.0.0.1/32"
+    - "192.168.0.0/16"
+    - "10.0.0.0/8"
+
+# Пороги и гистерезис правил — [TBD].
+thresholds:
+  temp_low: 22.0
+  temp_low_hysteresis: 1.0
+  temp_critical_low: 18.0
+  temp_critical_high: 30.0
+  o2_low: 5.0
+  o2_low_hysteresis: 0.5
+  flow_min: 5.0

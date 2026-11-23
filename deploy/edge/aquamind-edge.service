@@ -1,0 +1,18 @@
+[Unit]
+Description=AquaMind Edge controller
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=aquamind
+WorkingDirectory=/opt/aquamind
+ExecStart=/opt/aquamind/edge-pi --config /opt/aquamind/configs/edge.yaml
+Restart=on-failure
+RestartSec=5
+# Graceful shutdown: SIGTERM переводит железо в безопасное состояние.
+KillSignal=SIGTERM
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target

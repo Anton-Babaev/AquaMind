@@ -1,0 +1,10 @@
+# Конфигурация Backend (минимальный MVP).
+
+listen: ":8080"
+
+postgres:
+  dsn: "postgres://aquamind:aquamind@localhost:5432/aquamind?sslmode=disable"
+
+telegram:
+  token: ""                 # токен бота
+  chat_id: ""               # чат фермера

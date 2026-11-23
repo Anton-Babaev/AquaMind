@@ -1,0 +1,16 @@
+# Бинарники
+/bin/
+*.exe
+
+# Данные SQLite
+/data/
+*.db
+*.db-wal
+*.db-shm
+
+# Локальные конфиги с секретами
+configs/*.local.yaml
+
+# IDE
+.idea/
+.vscode/
