@@ -163,8 +163,7 @@ function makeAlertItem(al, kind) {
   if (kind === "active") {
     meta.textContent = "активен";
   } else {
-    const stateText = al.state === "cleared" ? "снят" : "поднят";
-    meta.textContent = fmtTime(al.at) + " · " + stateText;
+    meta.textContent = fmtTime(al.at);
   }
   li.appendChild(meta);
   return li;

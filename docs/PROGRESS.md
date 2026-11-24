@@ -426,6 +426,25 @@ ph_low: 6.5, ph_high: 8.5
   светодиоды мигают (`норма:🟢`), `curl localhost:8081/api/state` отдаёт JSON,
   дашборд открывается в kiosk сам после reboot.
 
+### ✅ Этап 7.1 — Мелкие правки UI и документации (готово)
+- **История алертов на дашборде:** убраны непонятные надписи «снят»/«поднят»
+  рядом со временем события. В `static/app.js` (`makeAlertItem`) для истории
+  теперь выводится только время (`fmtTime(al.at)`), без текста состояния.
+  Активные алерты по-прежнему помечаются «активен».
+- **`docs/RASPBERRY_PI_SETUP.md` переписан под актуальный процесс:**
+  - Прошивка **флешки (microSD)** через Raspberry Pi Imager — образ
+    **Raspberry Pi OS Desktop (64-bit)** вместо Lite (нужен браузер для kiosk).
+  - Go на Pi больше не ставим — сборка на ноутбуке (кросс-компиляция).
+  - Сборка в **PowerShell** через `$env:GOOS/GOARCH/GOARM` + грабля про
+    `set` vs `$env:` и `203/EXEC`.
+  - Бинарник в `/opt/aquamind/edge-pi` (в корне), проверка `file` → `ELF ... ARM`.
+  - Новый раздел **§12 Kiosk**: автозапуск chromium, ярлык на рабочем столе,
+    `--password-store=basic`, `~/Desktop` со слэшем.
+  - Диагностика дополнена (`203/EXEC`, `Permission denied` на scp, `~Desktop`,
+    keyring, kiosk), чек-лист обновлён под Desktop + kiosk.
+- **Применение на Pi:** статика встроена в бинарник (`//go:embed`) → пересобрать
+  `edge-pi`, залить `scp`, `sudo systemctl restart aquamind-edge`.
+
 ### Опционально (если успеем)
 - SafetyWatchdog (Safe Mode по устареванию данных) — `delivery/watchdog`
 - Settings HTTP (смена порогов по LAN) — `delivery/http` + `usecase/settings`
