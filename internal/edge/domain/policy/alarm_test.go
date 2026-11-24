@@ -26,43 +26,58 @@ func TestAlarmPolicy(t *testing.T) {
 	}{
 		{
 			name:    "всё в норме — нет алертов",
-			reading: domain.SensorReading{TempC: 24, FlowLPM: 12, O2MgL: 7},
+			reading: domain.SensorReading{TempC: 24, FlowLPM: 12, O2MgL: 7, PH: 7},
 			want:    nil,
 		},
 		{
 			name:     "safe mode — алерт",
-			reading:  domain.SensorReading{TempC: 24, FlowLPM: 12, O2MgL: 7},
+			reading:  domain.SensorReading{TempC: 24, FlowLPM: 12, O2MgL: 7, PH: 7},
 			safeMode: true,
 			want:     []domain.AlertType{domain.AlertSafeMode},
 		},
 		{
 			name:    "нет потока — алерт",
-			reading: domain.SensorReading{TempC: 24, FlowLPM: 2, O2MgL: 7},
+			reading: domain.SensorReading{TempC: 24, FlowLPM: 2, O2MgL: 7, PH: 7},
 			want:    []domain.AlertType{domain.AlertNoFlow},
 		},
 		{
 			name:    "критически высокая t° — алерт",
-			reading: domain.SensorReading{TempC: 31, FlowLPM: 12, O2MgL: 7},
+			reading: domain.SensorReading{TempC: 31, FlowLPM: 12, O2MgL: 7, PH: 7},
 			want:    []domain.AlertType{domain.AlertTempCriticalHigh},
 		},
 		{
 			name:    "критически низкая t° — алерт",
-			reading: domain.SensorReading{TempC: 17, FlowLPM: 12, O2MgL: 7},
+			reading: domain.SensorReading{TempC: 17, FlowLPM: 12, O2MgL: 7, PH: 7},
 			want:    []domain.AlertType{domain.AlertTempCriticalLow},
 		},
 		{
 			name:    "мало кислорода — алерт",
-			reading: domain.SensorReading{TempC: 24, FlowLPM: 12, O2MgL: 4},
+			reading: domain.SensorReading{TempC: 24, FlowLPM: 12, O2MgL: 4, PH: 7},
 			want:    []domain.AlertType{domain.AlertO2Low},
 		},
 		{
+			name:    "много кислорода — алерт",
+			reading: domain.SensorReading{TempC: 24, FlowLPM: 12, O2MgL: 10, PH: 7},
+			want:    []domain.AlertType{domain.AlertO2High},
+		},
+		{
+			name:    "pH ниже нормы — алерт",
+			reading: domain.SensorReading{TempC: 24, FlowLPM: 12, O2MgL: 7, PH: 6.0},
+			want:    []domain.AlertType{domain.AlertPHLow},
+		},
+		{
+			name:    "pH выше нормы — алерт",
+			reading: domain.SensorReading{TempC: 24, FlowLPM: 12, O2MgL: 7, PH: 9.0},
+			want:    []domain.AlertType{domain.AlertPHHigh},
+		},
+		{
 			name:    "холодно и мало кислорода — два алерта",
-			reading: domain.SensorReading{TempC: 17, FlowLPM: 12, O2MgL: 4},
+			reading: domain.SensorReading{TempC: 17, FlowLPM: 12, O2MgL: 4, PH: 7},
 			want:    []domain.AlertType{domain.AlertTempCriticalLow, domain.AlertO2Low},
 		},
 		{
 			name:     "safe mode + нет потока — два алерта",
-			reading:  domain.SensorReading{TempC: 24, FlowLPM: 2, O2MgL: 7},
+			reading:  domain.SensorReading{TempC: 24, FlowLPM: 2, O2MgL: 7, PH: 7},
 			safeMode: true,
 			want:     []domain.AlertType{domain.AlertSafeMode, domain.AlertNoFlow},
 		},

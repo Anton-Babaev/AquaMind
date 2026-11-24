@@ -15,14 +15,17 @@ import (
 // Важно: блокировка НЕ держится во время чтения датчиков, иначе Safe Mode
 // не включится при зависшем чтении (см. §5.2).
 type ControlUsecase struct {
-	sensors  SensorSource
+	sensors   SensorSource
 	actuators Actuators
-	store    Store
-	tracker  AlertTracker
+	store     Store
+	tracker   AlertTracker
 
-	mu       sync.RWMutex
-	state    domain.ActuatorState // текущее состояние выходов
-	safeMode bool                 // текущий режим
+	mu          sync.RWMutex
+	state       domain.ActuatorState // текущее состояние выходов
+	safeMode    bool                 // текущий режим
+	lastReading domain.SensorReading // последнее прочитанное показание (для UI)
+	lastAlerts  []domain.Alert       // активные алерты последнего тика (для UI)
+	hasReading  bool                 // было ли уже хотя бы одно чтение
 }
 
 // New создаёт ControlUsecase.
@@ -83,6 +86,9 @@ func (c *ControlUsecase) Tick(ctx context.Context) error {
 	// 9. Обновляем внутреннее состояние.
 	c.mu.Lock()
 	c.state = state
+	c.lastReading = reading
+	c.lastAlerts = activeAlerts
+	c.hasReading = true
 	c.mu.Unlock()
 
 	return nil
@@ -102,4 +108,24 @@ func (c *ControlUsecase) State() domain.ActuatorState {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.state
+}
+
+// LastReading возвращает последнее прочитанное показание датчиков и признак
+// того, было ли уже хотя бы одно чтение (для веб-интерфейса).
+func (c *ControlUsecase) LastReading() (domain.SensorReading, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.lastReading, c.hasReading
+}
+
+// LastAlerts возвращает копию активных алертов последнего тика (для UI).
+func (c *ControlUsecase) LastAlerts() []domain.Alert {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if c.lastAlerts == nil {
+		return nil
+	}
+	out := make([]domain.Alert, len(c.lastAlerts))
+	copy(out, c.lastAlerts)
+	return out
 }

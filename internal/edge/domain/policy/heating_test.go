@@ -13,8 +13,11 @@ func testThresholds() domain.Thresholds {
 		TempCriticalLow:   18.0,
 		TempCriticalHigh:  30.0,
 		O2Low:             5.0,
+		O2High:            9.0,
 		O2LowHysteresis:   0.5,
 		FlowMin:           5.0,
+		PHLow:             6.5,
+		PHHigh:            8.5,
 	}
 }
 

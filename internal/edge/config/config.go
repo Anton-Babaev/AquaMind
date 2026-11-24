@@ -120,8 +120,11 @@ func Default() Config {
 			TempCriticalLow:   18.0,
 			TempCriticalHigh:  30.0,
 			O2Low:             5.0,
+			O2High:            9.0,
 			O2LowHysteresis:   0.5,
 			FlowMin:           5.0,
+			PHLow:             6.5,
+			PHHigh:            8.5,
 		},
 		Safety: SafetyConfig{
 			Interval:   1 * time.Second,
@@ -328,8 +331,11 @@ type fileThresholds struct {
 	TempCriticalLow   *float64 `yaml:"temp_critical_low"`
 	TempCriticalHigh  *float64 `yaml:"temp_critical_high"`
 	O2Low             *float64 `yaml:"o2_low"`
+	O2High            *float64 `yaml:"o2_high"`
 	O2LowHysteresis   *float64 `yaml:"o2_low_hysteresis"`
 	FlowMin           *float64 `yaml:"flow_min"`
+	PHLow             *float64 `yaml:"ph_low"`
+	PHHigh            *float64 `yaml:"ph_high"`
 }
 
 // duration — обёртка над time.Duration для разбора строк вида "10s", "500ms".
@@ -450,11 +456,20 @@ func (f fileConfig) applyTo(cfg *Config) {
 		if f.Thresholds.O2Low != nil {
 			cfg.Thresholds.O2Low = *f.Thresholds.O2Low
 		}
+		if f.Thresholds.O2High != nil {
+			cfg.Thresholds.O2High = *f.Thresholds.O2High
+		}
 		if f.Thresholds.O2LowHysteresis != nil {
 			cfg.Thresholds.O2LowHysteresis = *f.Thresholds.O2LowHysteresis
 		}
 		if f.Thresholds.FlowMin != nil {
 			cfg.Thresholds.FlowMin = *f.Thresholds.FlowMin
+		}
+		if f.Thresholds.PHLow != nil {
+			cfg.Thresholds.PHLow = *f.Thresholds.PHLow
+		}
+		if f.Thresholds.PHHigh != nil {
+			cfg.Thresholds.PHHigh = *f.Thresholds.PHHigh
 		}
 	}
 }

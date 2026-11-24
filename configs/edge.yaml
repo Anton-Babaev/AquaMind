@@ -48,10 +48,17 @@ control_plane:
 
 # Пороги и гистерезис правил — [TBD].
 thresholds:
+  # Температура, °C
   temp_low: 22.0
   temp_low_hysteresis: 1.0
   temp_critical_low: 18.0
   temp_critical_high: 30.0
+  # Кислород, мг/л
   o2_low: 5.0
+  o2_high: 9.0
   o2_low_hysteresis: 0.5
+  # Поток, л/мин
   flow_min: 5.0
+  # pH (допустимый диапазон)
+  ph_low: 6.5
+  ph_high: 8.5

@@ -14,6 +14,7 @@ import (
 	"github.com/Anton-Babaev/AquaMind/internal/edge/adapter/hardware/simulation"
 	"github.com/Anton-Babaev/AquaMind/internal/edge/adapter/storage/sqlite"
 	"github.com/Anton-Babaev/AquaMind/internal/edge/config"
+	edgehttp "github.com/Anton-Babaev/AquaMind/internal/edge/delivery/http"
 	"github.com/Anton-Babaev/AquaMind/internal/edge/delivery/poller"
 	"github.com/Anton-Babaev/AquaMind/internal/edge/delivery/syncworker"
 	"github.com/Anton-Babaev/AquaMind/internal/edge/usecase/alert"
@@ -77,6 +78,9 @@ func main() {
 	backend := backendclient.New(cfg.BackendURL, cfg.RequestTimeout)
 	sync := syncworker.New(store, backend, cfg.ClientID, cfg.SyncInterval, cfg.BatchSize)
 
+	// Delivery: локальный веб-интерфейс (дашборд + пороги).
+	web := edgehttp.NewServer(cfg.ControlPlane.Listen, ctrl, store, store)
+
 	// --- Запуск ---
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -87,6 +91,13 @@ func main() {
 
 	// SyncWorker в отдельной горутине.
 	go sync.Run(ctx)
+
+	// Веб-интерфейс в отдельной горутине.
+	go func() {
+		if err := web.Run(ctx); err != nil {
+			log.Printf("http server: %v", err)
+		}
+	}()
 
 	// Graceful shutdown: по сигналу отменяем контекст, поллер останавливается.
 	p.Run(ctx)

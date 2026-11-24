@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AquaMind — Edge</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🐟</span>
+      <span class="title">AquaMind</span>
+      <span class="subtitle">Edge Controller</span>
+    </div>
+    <nav class="tabs">
+      <button class="tab active" data-tab="dashboard">Дашборд</button>
+      <button class="tab" data-tab="thresholds">Пороги</button>
+      <button class="tab" data-tab="wifi">Wi-Fi</button>
+      <button class="tab" data-tab="feeding">Кормление</button>
+      <button class="tab" data-tab="logs">Логи</button>
+    </nav>
+    <div class="conn" id="conn">
+      <span class="dot" id="conn-dot"></span>
+      <span id="conn-text">подключение…</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- ДАШБОРД -->
+    <section class="panel active" id="panel-dashboard">
+      <div class="sensors">
+        <div class="card sensor" id="card-temp">
+          <div class="sensor-label">Температура</div>
+          <div class="sensor-value"><span id="v-temp">—</span><span class="unit">°C</span></div>
+          <div class="sensor-status" id="st-temp"></div>
+        </div>
+        <div class="card sensor" id="card-flow">
+          <div class="sensor-label">Поток</div>
+          <div class="sensor-value"><span id="v-flow">—</span><span class="unit">л/мин</span></div>
+          <div class="sensor-status" id="st-flow"></div>
+        </div>
+        <div class="card sensor" id="card-o2">
+          <div class="sensor-label">Кислород</div>
+          <div class="sensor-value"><span id="v-o2">—</span><span class="unit">мг/л</span></div>
+          <div class="sensor-status" id="st-o2"></div>
+        </div>
+        <div class="card sensor" id="card-ph">
+          <div class="sensor-label">pH</div>
+          <div class="sensor-value"><span id="v-ph">—</span></div>
+          <div class="sensor-status" id="st-ph"></div>
+        </div>
+      </div>
+
+      <div class="card alerts">
+        <div class="alerts-title">Активные алерты</div>
+        <ul id="alerts-list" class="alerts-list">
+          <li class="alerts-empty">Нет активных алертов</li>
+        </ul>
+      </div>
+
+      <div class="updated">Обновлено: <span id="updated-at">—</span></div>
+    </section>
+
+    <!-- ПОРОГИ -->
+    <section class="panel" id="panel-thresholds">
+      <form class="card thresholds-form" id="thresholds-form">
+        <h2>Пороги и гистерезис</h2>
+
+        <fieldset class="form-group">
+          <legend>Температура, °C</legend>
+          <div class="form-grid">
+            <label>Критически низкая
+              <input type="number" step="0.1" name="temp_critical_low">
+            </label>
+            <label>Нижний порог подогрева
+              <input type="number" step="0.1" name="temp_low">
+            </label>
+            <label>Гистерезис подогрева
+              <input type="number" step="0.1" name="temp_low_hysteresis">
+            </label>
+            <label>Критически высокая
+              <input type="number" step="0.1" name="temp_critical_high">
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="form-group">
+          <legend>Кислород, мг/л</legend>
+          <div class="form-grid">
+            <label>Нижний порог
+              <input type="number" step="0.1" name="o2_low">
+            </label>
+            <label>Верхний порог
+              <input type="number" step="0.1" name="o2_high">
+            </label>
+            <label>Гистерезис
+              <input type="number" step="0.1" name="o2_low_hysteresis">
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="form-group">
+          <legend>Поток, л/мин</legend>
+          <div class="form-grid">
+            <label>Минимальный поток
+              <input type="number" step="0.1" name="flow_min">
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="form-group">
+          <legend>pH</legend>
+          <div class="form-grid">
+            <label>Нижняя граница
+              <input type="number" step="0.1" name="ph_low">
+            </label>
+            <label>Верхняя граница
+              <input type="number" step="0.1" name="ph_high">
+            </label>
+          </div>
+        </fieldset>
+
+        <div class="form-actions">
+          <button type="submit" class="btn-primary">Сохранить</button>
+          <span class="form-msg" id="thresholds-msg"></span>
+        </div>
+      </form>
+    </section>
+
+    <!-- ЗАГЛУШКИ -->
+    <section class="panel" id="panel-wifi">
+      <div class="card placeholder">
+        <h2>Wi-Fi</h2>
+        <p>Настройка сети — в разработке.</p>
+      </div>
+    </section>
+    <section class="panel" id="panel-feeding">
+      <div class="card placeholder">
+        <h2>Кормление</h2>
+        <p>Управление кормушкой — в разработке.</p>
+      </div>
+    </section>
+    <section class="panel" id="panel-logs">
+      <div class="card placeholder">
+        <h2>Логи</h2>
+        <p>Журнал событий — в разработке.</p>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+
+</html>

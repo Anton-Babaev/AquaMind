@@ -167,6 +167,39 @@ func (r *Repository) SaveThresholds(ctx context.Context, t domain.Thresholds) er
 	return tx.Commit()
 }
 
+// RecentAlerts возвращает последние limit событий алертов (raised/cleared),
+// отсортированные по времени по убыванию (свежие первыми).
+func (r *Repository) RecentAlerts(ctx context.Context, limit int) ([]domain.Alert, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT at_ms, type, severity, message, state FROM alerts ORDER BY at_ms DESC, id DESC LIMIT ?`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query alerts: %w", err)
+	}
+	defer rows.Close()
+
+	var out []domain.Alert
+	for rows.Next() {
+		var (
+			atMs                      int64
+			typ, severity, msg, state string
+		)
+		if err := rows.Scan(&atMs, &typ, &severity, &msg, &state); err != nil {
+			return nil, err
+		}
+		out = append(out, domain.Alert{
+			Type:     domain.AlertType(typ),
+			Severity: domain.AlertSeverity(severity),
+			Message:  msg,
+			At:       time.UnixMilli(atMs).UTC(),
+			State:    domain.AlertState(state),
+		})
+	}
+	return out, rows.Err()
+}
+
 // PendingOutbox возвращает до limit неотправленных записей outbox.
 func (r *Repository) PendingOutbox(ctx context.Context, limit int) ([]OutboxEntry, error) {
 	rows, err := r.db.QueryContext(ctx,
