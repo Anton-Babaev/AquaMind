@@ -17,3 +17,10 @@ configs/*.local.yaml
 
 # Логи запуска
 *.log
+
+# Учебные материалы куратора (не часть проекта)
+/Lessons/
+
+# Покрытие тестов
+coverage.out
+coverage.html

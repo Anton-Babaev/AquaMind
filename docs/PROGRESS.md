@@ -7,16 +7,30 @@
 
 ## Где мы сейчас (для продолжения в новом чате)
 
-- **Последний коммит:** `4b3e1e0` — «feat(edge): GPIO-адаптер на go-rpio +
-  выбор hardware по конфигу (Этап 4)». Рабочее дерево чистое.
+- **Последний коммит:** `f7ced49` — «docs(progress): блок "Где мы сейчас"».
+  В рабочем дереве есть **незакоммиченные** изменения (см. ниже).
 - **Готово:** Этапы 1–4 (домен+политики, Control+Poller+console, SQLite+Sync+
   Backend-заглушка, GPIO на Pi + README + инструкция по Pi).
+- **Добавлено после Этапа 4 (НЕ закоммичено):**
+  - Тесты `backendclient` (`client_test.go`, 6 кейсов на `httptest`: успех,
+    500, битый JSON, отмена ctx, таймаут, отказ соединения).
+  - Тесты `sqlite` (`repository_test.go`, 8 кейсов на `t.TempDir()`: миграции,
+    SaveTick+outbox, MarkSent, лимит, round-trip порогов, upsert, отмена ctx).
+  - `Makefile`: цели `test-race` (`go test -race ./...`) и `cover`
+    (`coverage.out` + `coverage.html`); `clean` чистит coverage-файлы.
+  - Папка `Lessons/` (материалы куратора по Go) — **не коммитить** (добавить
+    в `.gitignore` или держать вне репозитория).
 - **Проверки зелёные:** `go build ./...`, `go test ./...`, `go vet ./...`;
   `make build-pi` собирает `bin/edge-pi` (~16 МБ).
+- **`-race` пока НЕ проверен:** на Windows требует gcc/cgo (нет). Планируется
+  через Docker (`docker run --rm -v ${PWD}:/app -w /app golang:1.26 go test -race ./...`)
+  или на Pi/CI. Docker Desktop требует включить WSL2 (`wsl --install` от админа).
 - **Следующий шаг (на выбор):**
-  1. **Safety** — `usecase/safety` + `delivery/watchdog` (Safe Mode по
+  1. **Запуск на реальном Pi** — сборка схемы со светодиодами (резисторы 220 Ом,
+     маркировка `220R`), `make build-pi`, systemd. **Ближайшая цель.**
+  2. **Safety** — `usecase/safety` + `delivery/watchdog` (Safe Mode по
      устареванию данных / ошибке датчика). В плане это п.5.
-  2. **Settings HTTP** — `usecase/settings` + `delivery/http` + middleware
+  3. **Settings HTTP** — `usecase/settings` + `delivery/http` + middleware
      «только LAN» (смена порогов по сети).
 - **Окружение:** терминал — PowerShell (не bash). Команды писать под PowerShell.
 - **Важно:** `hardware: gpio` на ноутбуке даёт понятную ошибку (заглушка
@@ -128,6 +142,18 @@ flow_min: 5.0
 - Проверено: `go build ./...`, `go test ./...`, `go vet ./...` — зелёные;
   на ноутбуке `hardware: gpio` даёт понятную ошибку, `hardware: console` работает.
 
+### ✅ Этап 4.1 — Тесты адаптеров + Makefile-цели (готово, не закоммичено)
+- `internal/edge/adapter/backendclient/client_test.go` — 6 тестов на `httptest`:
+  успех (проверка метода/пути/Content-Type/тела/ack), 500, битый JSON ack,
+  отмена ctx, таймаут, отказ соединения.
+- `internal/edge/adapter/storage/sqlite/repository_test.go` — 8 тестов на
+  `t.TempDir()`: применение миграций, SaveTick пишет reading+outbox (проверка
+  payload), MarkSent убирает из pending, пустые ids, лимит PendingOutbox,
+  round-trip порогов, upsert порогов, отмена ctx.
+- `Makefile`: `test-race` (`go test -race ./...`), `cover` (coverage.out +
+  coverage.html), `clean` чистит coverage-файлы.
+- Все новые тесты зелёные (`go test ./...`), `go vet ./...` чисто.
+
 ### Опционально (если успеем)
 - SafetyWatchdog (Safe Mode по устареванию данных) — `delivery/watchdog`
 - Settings HTTP (смена порогов по LAN) — `delivery/http` + `usecase/settings`
@@ -185,8 +211,24 @@ internal/
 
 ## Проверки перед коммитом
 
-```bash
+```powershell
 go build ./...
 go test ./...
 go vet ./...
+# опционально, если есть gcc/Docker/Pi:
+# go test -race ./...
+# make cover
 ```
+
+## Заметки для нового чата
+
+- **Ближайшая задача:** собрать схему на Pi (светодиоды + резисторы 220 Ом,
+  маркировка `220R`; `100K`/`220K` — НЕ подходят), запустить `bin/edge-pi`.
+- **Резистор 220 Ом:** полоски `красный-красный-коричневый-золотой`; проверить
+  мультиметром (~220 Ом). Нужно 3 шт. (жёлтый/красный/зелёный).
+- **Пины:** GPIO17=пин11 (жёлтый), GPIO27=пин13 (красный), GPIO22=пин15
+  (зелёный), GND=пин9. См. `docs/RASPBERRY_PI_SETUP.md`.
+- **`-race`:** локально на Windows не работает без gcc; вариант — Docker
+  (`docker run --rm -v ${PWD}:/app -w /app golang:1.26 go test -race ./...`)
+  или запуск на Pi. Docker Desktop требует WSL2 (`wsl --install` от админа).
+- **Не коммитить** папку `Lessons/`.
