@@ -29,7 +29,9 @@ type actuators interface {
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 
-	cfg, err := config.Load()
+	// Загружаем конфигурацию: флаг --config <путь> (из systemd-юнита),
+	// иначе — дефолты + переменные окружения AQUAMIND_*.
+	cfg, err := config.LoadFromArgs(os.Args[1:])
 	if err != nil {
 		log.Fatalf("config: %v", err)
 	}
