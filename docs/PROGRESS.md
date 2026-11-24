@@ -56,9 +56,11 @@
   2. ✅ **Веб-интерфейс Edge (дашборд + пороги)** — ГОТОВО и закоммичено
      (`fc33c6d`, см. Этап 6 ниже). API `/api/state`, `/api/thresholds` проверены вживую.
      ✅ **Доработки UI и порогов** (Этап 6.1, см. ниже) — ГОТОВО и закоммичено.
-  3. **Kiosk на Pi** — перейти на Raspberry Pi OS Desktop + chromium kiosk
-     (монитор по HDMI, клавиатура+мышь подключены к Pi). Отдельный этап.
+  3. ✅ **Kiosk на Pi** — ГОТОВО (см. Этап 7 ниже). Pi на Raspberry Pi OS
+     Desktop, chromium kiosk автозапускается на `http://localhost:8081`,
+     дашборд открывается сам при загрузке на весь экран.
   4. **Актуаторы** (насос, подсветка, кормушка) — реальные исполнители через реле.
+     **Ждём модуль реле** (ещё не куплен/не пришёл).
   5. **Кормление**, **Wi-Fi**, **Логи** (вкладки-заглушки уже есть), **Backend**, **Frontend**.
 - **Окружение:** терминал — PowerShell (не bash). Команды писать под PowerShell.
 - **Важно:** `hardware: gpio` на ноутбуке даёт понятную ошибку (заглушка
@@ -377,6 +379,53 @@ ph_low: 6.5, ph_high: 8.5
 - **Проверено:** `go build ./...`, `go vet ./...`, `go test ./...` — зелёные;
   UI проверен вживую (edge перезапущен, статика встроена в бинарник).
 
+### ✅ Этап 7 — Kiosk на Raspberry Pi (готово, проверено вживую 25.11.2026)
+- **Pi перепрошит на Raspberry Pi OS Desktop (64-bit)** — вместо Lite (нужен
+  браузер для kiosk). При прошивке через Raspberry Pi Imager заданы: пользователь
+  `aquamind`, SSH (password auth), Wi-Fi домашней сети, hostname `aquamind`.
+- **Сеть:** домашний Wi-Fi `192.168.1.x`, Pi получил IP `192.168.1.101` (DHCP,
+  может меняться — искать по MAC `b8-27-eb-13-76-83` через `arp -a` или смотреть
+  IP на экране Pi при загрузке).
+- **Восстановление после перепрошивки** (флешка стёрта → всё пропало):
+  - `sudo apt update && sudo apt install -y git`
+  - `sudo git clone https://github.com/Anton-Babaev/AquaMind.git /opt/aquamind`
+  - `sudo chown -R aquamind:aquamind /opt/aquamind`
+  - бинарник собран на ноутбуке и залит по `scp` (см. заметки ниже).
+  - systemd-сервис восстановлен: `sudo cp deploy/edge/aquamind-edge.service
+    /etc/systemd/system/` + `daemon-reload` + `enable` + `start`.
+- **Kiosk-автозапуск** (создан удалённо по SSH, без ручного набора на Pi):
+  - `~/.config/autostart/aquamind-kiosk.desktop`:
+    ```
+    [Desktop Entry]
+    Type=Application
+    Name=AquaMind Kiosk
+    Exec=chromium --kiosk --noerrdialogs --disable-infobars --incognito --password-store=basic http://localhost:8081
+    X-GNOME-Autostart-enabled=true
+    ```
+  - `--password-store=basic` — убирает всплывающее окно GNOME Keyring при
+    автозагрузке (браузер не трогает keyring).
+  - **Проверено:** после `sudo reboot` дашборд открывается сам на весь экран.
+  - Выход из kiosk: `Alt+F4`.
+- **Ярлык на рабочем столе** `~/Desktop/aquamind.desktop` (двойной клик →
+  дашборд в kiosk). Создаётся через `cat > ... <<'EOF'` (удобнее, чем `nano`).
+- **⚠️ ВАЖНЫЕ ГРАБЛИ (сборка/деплой на Pi):**
+  1. **Сборка под ARM в PowerShell** — только `$env:GOOS="linux"`,
+     `$env:GOARCH="arm"`, `$env:GOARM="7"`. Команда `set GOOS=...` (cmd-синтаксис)
+     в PowerShell **НЕ работает** → собирается PE32+ под Windows → на Pi
+     `systemctl` падает с `status=203/EXEC`. Проверка: `go version -m bin\edge-pi`
+     должна показать `GOOS=linux GOARCH=arm GOARM=7`; на Pi `file edge-pi` →
+     `ELF 32-bit LSB executable, ARM`.
+  2. **Бинарник кладём в `/opt/aquamind/edge-pi`** (в корень, куда смотрит
+     `ExecStart` в unit-файле), а НЕ в `bin/`. Иначе `203/EXEC`.
+  3. **Права на запись:** `/opt/aquamind` после `sudo git clone` принадлежит
+     root → `scp` даёт `Permission denied`. Лечится
+     `sudo chown -R aquamind:aquamind /opt/aquamind`.
+  4. **`~` без слэша** (`~Desktop`) не раскрывается → `No such file or directory`.
+     Писать `~/Desktop/...`.
+- **Проверено вживую:** `systemctl status aquamind-edge` → `active (running)`,
+  светодиоды мигают (`норма:🟢`), `curl localhost:8081/api/state` отдаёт JSON,
+  дашборд открывается в kiosk сам после reboot.
+
 ### Опционально (если успеем)
 - SafetyWatchdog (Safe Mode по устареванию данных) — `delivery/watchdog`
 - Settings HTTP (смена порогов по LAN) — `delivery/http` + `usecase/settings`
@@ -445,11 +494,17 @@ go vet ./...
 
 ## Заметки для нового чата
 
-- **Ближайшая задача:** Этап 7 — **Kiosk на Pi** (Raspberry Pi OS Desktop +
-  chromium kiosk на `http://localhost:8081`) ИЛИ Этап 8 — **Актуаторы** (реле
-  с оптронной развязкой: насос/аэратор/подсветка + кормушка). См. «План работ».
+- **Ближайшая задача:** Этап 8 — **Актуаторы** (реле с оптронной развязкой:
+  насос/аэратор/подсветка + кормушка). **Ждём модуль реле** — как придёт,
+  начинаем. Пока можно готовить код с флагом `active_low` и секцией `actuators:`
+  в конфиге. См. «План работ» и «Реальные исполнители».
+- **Kiosk на Pi готов** (Этап 7): дашборд автозапускается на весь экран.
 - **Светодиоды на Pi уже собраны и работают** (см. блок «ГОТОВО И ПРОВЕРЕНО
   ВЖИВУЮ НА РЕАЛЬНОМ Pi»).
+- **IP Pi:** `192.168.1.101` (домашний Wi-Fi, DHCP). SSH из cmd/PowerShell:
+  `ssh aquamind@192.168.1.101`.
+- **Сборка/деплой на Pi** — см. грабли в Этапе 7 (PowerShell `$env:GOOS`,
+  бинарник в `/opt/aquamind/edge-pi`, `chown`, `~/Desktop`).
 - **Резистор 220 Ом:** полоски `красный-красный-коричневый-золотой`; проверить
   мультиметром (~220 Ом). Нужно 3 шт. (жёлтый/красный/зелёный).
 - **Пины:** GPIO17=пин11 (жёлтый), GPIO27=пин13 (красный), GPIO22=пин15
