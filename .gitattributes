@@ -1,0 +1,21 @@
+# Единые переводы строк: в репозитории всегда LF (важно для Pi/Linux и Make).
+* text=auto eol=lf
+
+# Явно для критичных типов файлов.
+*.go     text eol=lf
+Makefile text eol=lf
+*.sh     text eol=lf
+*.yaml   text eol=lf
+*.yml    text eol=lf
+*.sql    text eol=lf
+*.md     text eol=lf
+*.csv    text eol=lf
+
+# Бинарники — не трогать.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.db  binary
+*.exe binary
