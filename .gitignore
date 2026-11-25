@@ -32,7 +32,11 @@ configs/*.local.yaml
 /docs/AI_PROMPT.md
 /docs/AI_CONTEXT.md
 
+# Папка docs целиком (личные материалы, снапшоты, промпты)
+/docs/
+
 # Покрытие тестов
 coverage.out
 coverage.html
+
 

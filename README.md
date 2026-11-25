@@ -27,7 +27,7 @@
 
 ## Архитектура (кратко)
 
-Три сервиса, один Go-модуль, три программы в `cmd/`:
+Два контура, один Go-модуль, две программы в `cmd/`:
 
 ```
                        ┌────────────── Raspberry Pi 3 B+ ──────────────┐
@@ -41,19 +41,22 @@
                         Backend (Go) ──▶ PostgreSQL
                               │
                               ├──▶ Telegram API ──▶ фермер
-                              ▲
-                              │ HTTP GET (опционально)
-                        Frontend (Go + HTMX) ◀── браузер оператора
+                              │
+                              └──▶ Frontend (встроен в Backend)
+                                     статика + API, браузер оператора
 ```
 
 | Сервис | Где работает | Роль | Хранит данные |
 |---|---|---|---|
 | **Edge** | Raspberry Pi 3 B+ | Автономный источник правды: читает датчики, применяет правила, управляет выходами, копит и досылает данные | SQLite |
-| **Backend** | Сервер / ноутбук | Принимает пакеты с дедупликацией, хранит историю, шлёт алерты в Telegram | PostgreSQL |
-| **Frontend** | Сервер / ноутбук | Показывает показания и алерты (опционально) | Нет |
+| **Backend** | Сервер / ноутбук | Принимает пакеты с дедупликацией, хранит историю, шлёт алерты в Telegram, отдаёт веб-дашборд оператора | PostgreSQL |
 
-**Направление связей:** Edge → Backend ← Frontend. Edge не открывает порты
-в интернет, Backend не ходит к Edge.
+**Frontend — часть Backend-контура.** Отдельного сервиса нет: статика
+(HTML/CSS/JS) встроена в бинарник Backend через `//go:embed` и раздаётся тем же
+HTTP-сервером, что и API. Backend и Frontend разворачиваются вместе на сервере.
+
+**Направление связей:** Edge → Backend. Edge не открывает порты в интернет,
+Backend не ходит к Edge.
 
 ### Слои Edge (Clean Architecture)
 
@@ -101,7 +104,7 @@ make test
 make run-backend
 
 # Терминал 2 — Edge (сценарий через env)
-AQUAMIND_SCENARIO=scenarios/no_flow.csv \
+AQUAMIND_SCENARIO=edge/scenarios/no_flow.csv \
 AQUAMIND_POLL_INTERVAL=500ms \
 AQUAMIND_SYNC_INTERVAL=2s \
 make run-edge
@@ -125,6 +128,12 @@ LED  подогрев:⚪  тревога:🔴  норма:⚪
 | `AQUAMIND_SYNC_INTERVAL` | период синхронизации | `10s` |
 | `AQUAMIND_HARDWARE` | адаптер выходов: `console` \| `gpio` | `console` |
 
+> **Пути к сценариям.** Дефолт в коде — `scenarios/day_cycle.csv` (относительно
+> рабочей директории). При запуске из корня репозитория задайте путь явно:
+> `AQUAMIND_SCENARIO=edge/scenarios/day_cycle.csv`. На Pi сервис работает с
+> `WorkingDirectory=/opt/aquamind`, где `scenarios/` лежит в корне (см.
+> `docs/RASPBERRY_PI_SETUP.md`).
+
 ---
 
 ## Запуск на Raspberry Pi
@@ -135,9 +144,9 @@ LED  подогрев:⚪  тревога:🔴  норма:⚪
    make build-pi        # → bin/edge-pi
    ```
 
-2. Скопируйте на Pi и переключите `hardware: gpio` в `configs/edge.yaml`.
+2. Скопируйте на Pi и переключите `hardware: gpio` в `edge/configs/edge.yaml`.
 3. Подключите светодиоды (BCM 17/27/22 через резисторы 220–330 Ом).
-4. Установите systemd-сервис `deploy/edge/aquamind-edge.service`.
+4. Установите systemd-сервис `edge/deploy/aquamind-edge.service`.
 
 **Полная пошаговая инструкция:** [`docs/RASPBERRY_PI_SETUP.md`](docs/RASPBERRY_PI_SETUP.md)
 (прошивка флешки, SSH, установка Go, права на GPIO, systemd, диагностика).
@@ -162,19 +171,27 @@ GPIO-пин ──[ резистор 220–330 Ом ]──▶|── GND
 
 ```
 aquamind/
-├── cmd/
-│   ├── edge/          # Edge-контроллер (Raspberry Pi)
-│   ├── backend/       # Backend (приём, дедуп, Telegram)
-│   └── frontend/      # Frontend (опционально)
-├── configs/           # edge.yaml, backend.yaml
-├── scenarios/         # CSV-сценарии симуляции
-├── deploy/edge/       # systemd-сервис
-├── docs/              # PROGRESS.md, RASPBERRY_PI_SETUP.md
-└── internal/
-    ├── contract/syncv1/   # единственный общий код Edge↔Backend
-    ├── edge/              # domain, usecase, delivery, adapter
-    ├── backend/
-    └── frontend/
+├── contract/syncv1/   # единственный общий код Edge↔Backend
+├── edge/              # Контур Edge (Raspberry Pi)
+│   ├── cmd/edge/      #   точка входа Edge
+│   ├── config/ + configs/edge.yaml
+│   ├── scenarios/     #   CSV-сценарии симуляции
+│   ├── deploy/        #   systemd-сервис Edge
+│   ├── domain/ + domain/policy/
+│   ├── usecase/{control,alert,safety,settings,uplink}
+│   ├── delivery/{poller,watchdog,syncworker,retention,http}
+│   │   └── http/      #   server.go, handlers.go, middleware.go (CIDR) + static/ (дашборд)
+│   └── adapter/{hardware,storage,backendclient}
+│       └── hardware/{simulation,gpio,console}  # modbus/ — пустая заглушка, не делаем
+└── backend/           # Контур Backend (сервер) + встроенный Frontend
+    ├── cmd/backend/   #   точка входа Backend
+    ├── config/ + configs/backend.yaml
+    ├── deploy/        #   Dockerfile + docker-compose + env.example
+    ├── domain/
+    ├── usecase/{ingest,notify,query}  # alert/ — пустая заглушка, зарезервирован
+    ├── delivery/http/ #   server.go, dto.go + раздача статики (//go:embed static)
+    │   └── static/    #   Frontend: index.html, app.js, style.css
+    └── adapter/{postgres,telegram}
 ```
 
 ---
@@ -185,7 +202,8 @@ aquamind/
 - **SQLite** (`modernc.org/sqlite`) — чистый Go, без CGO (важно для ARM).
 - **GPIO** (`go-rpio`) — чистый Go, без CGO.
 - **PostgreSQL** — хранилище Backend.
-- **HTMX + Tailwind** — Frontend (опционально).
+
+- **HTML/CSS/JS** — Frontend, встроен в бинарник Backend (`//go:embed`).
 
 ---
 
@@ -193,10 +211,8 @@ aquamind/
 
 | Документ | Что внутри |
 |---|---|
-| [`AquaMind_project_context.md`](AquaMind_project_context.md) | Полный контекст: цели, архитектура, решения (D1–D20), риски, план |
 | [`docs/PROGRESS.md`](docs/PROGRESS.md) | Карта проекта и статус этапов — **читать первым при продолжении работы** |
-| [`docs/RASPBERRY_PI_SETUP.md`](docs/RASPBERRY_PI_SETUP.md) | Настройка Raspberry Pi от флешки до systemd |
-| [`AquaMind_architecture_v3.html`](AquaMind_architecture_v3.html) | Схемы системы и слоёв |
+| [`docs/RASPBERRY_PI_SETUP.md`](docs/RASPBERRY_PI_SETUP.md) | Настройка Raspberry Pi от флешки до systemd и kiosk |
 
 ---
 
@@ -208,7 +224,16 @@ aquamind/
 | 2. Control + Poller + console-LED | ✅ готово |
 | 3. SQLite + Sync + Backend-заглушка | ✅ готово |
 | 4. GPIO на Pi + настройка железа | ✅ готово |
-| Safety, Settings, Frontend | ⏳ в планах |
+| 5. YAML-парсер конфига | ✅ готово |
+| 6. Веб-интерфейс Edge (дашборд + пороги) | ✅ готово |
+| 7. Kiosk на Raspberry Pi | ✅ готово |
+| 8. Backend: PostgreSQL + Telegram | ✅ готово |
+| 9. Устойчивость Edge: CIDR, retention, ретраи | ✅ готово |
+| Реальные исполнители (реле) | ⏳ ждём модуль реле |
+
+> Реальные датчики не обязательны — используется CSV-симуляция. Сейчас есть
+> светодиоды-индикаторы (подогрев/тревога/норма); реальные исполнители (насос,
+> подсветка, кормушка) подключаются через модуль реле, когда он придёт.
 
 ---
 

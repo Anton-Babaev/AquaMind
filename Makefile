@@ -1,7 +1,8 @@
-.PHONY: test test-race cover lint build build-pi run-edge run-backend run-fro
-ntend tidy clean
+.PHONY: test test-race cover lint build build-pi run-edge run-backend tidy clean
 
-# Один модуль, три программы в cmd/.
+# Один модуль, две программы в cmd/: edge и backend.
+# Frontend — часть Backend-контура: статика встроена в бинарник backend
+# (backend/delivery/http/static через //go:embed), отдельного cmd/frontend нет.
 BIN_DIR := bin
 
 test:
@@ -21,28 +22,21 @@ lint:
 	go vet ./...
 
 build:
-	go build -o $(BIN_DIR)/edge ./cmd/edge
-	go build -o $(BIN_DIR)/backend ./cmd/backend
-	go build -o $(BIN_DIR)/frontend ./cmd/frontend
-
+	go build -o $(BIN_DIR)/edge ./edge/cmd/edge
+	go build -o $(BIN_DIR)/backend ./backend/cmd/backend
 # Кросс-компиляция под Raspberry Pi 3 B+ (ARMv7).
 build-pi:
-	GOOS=linux GOARCH=arm GOARM=7 go build -o $(BIN_DIR)/edge-pi ./cmd/edge
+	GOOS=linux GOARCH=arm GOARM=7 go build -o $(BIN_DIR)/edge-pi ./edge/cmd/edge
 
 run-edge:
-	go run ./cmd/edge
+	go run ./edge/cmd/edge
 
 run-backend:
-	go run ./cmd/backend
-
-run-frontend:
-	go run ./cmd/frontend
+	go run ./backend/cmd/backend
 
 tidy:
 	go mod tidy
 
 clean:
 	rm -rf $(BIN_DIR)
-
-
 
