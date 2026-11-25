@@ -196,6 +196,45 @@ function drawChart(ticks) {
 
 // --- Алерты ----------------------------------------------------------------
 
+// Человекочитаемые подписи для типов алертов, уровней и состояний.
+const ALERT_TYPE_LABELS = {
+  temp_low: "Низкая температура",
+  temp_high: "Высокая температура",
+  temp_critical_low: "Критически низкая температура",
+  temp_critical_high: "Критически высокая температура",
+  o2_low: "Низкий кислород",
+  o2_critical_low: "Критически низкий кислород",
+  flow_low: "Слабый поток воды",
+  flow_high: "Сильный поток воды",
+  ph_low: "Низкий pH",
+  ph_high: "Высокий pH",
+  sensor_fault: "Неисправность датчика",
+  safe_mode: "Аварийный режим",
+};
+
+const SEVERITY_LABELS = {
+  info: "Инфо",
+  warning: "Предупреждение",
+  critical: "Критично",
+};
+
+const ALERT_STATE_LABELS = {
+  raised: "Активен",
+  cleared: "Устранён",
+};
+
+function alertTypeLabel(t) {
+  return ALERT_TYPE_LABELS[t] || t;
+}
+
+function severityLabel(s) {
+  return SEVERITY_LABELS[s] || s;
+}
+
+function alertStateLabel(s) {
+  return ALERT_STATE_LABELS[s] || s;
+}
+
 async function loadAlerts() {
   if (!state.clientId) return;
   const url = `${API}/alerts?client_id=${encodeURIComponent(state.clientId)}&limit=100`;
@@ -211,10 +250,10 @@ async function loadAlerts() {
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${fmtTime(a.at)}</td>
-        <td>${a.type}</td>
-        <td class="sev-${a.severity}">${a.severity}</td>
+        <td>${alertTypeLabel(a.type)}</td>
+        <td class="sev-${a.severity}">${severityLabel(a.severity)}</td>
         <td>${a.message}</td>
-        <td class="state-${a.state}">${a.state}</td>`;
+        <td class="state-${a.state}">${alertStateLabel(a.state)}</td>`;
       body.appendChild(tr);
     }
   } catch (e) {
