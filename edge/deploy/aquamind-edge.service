@@ -7,7 +7,7 @@ Wants=network-online.target
 Type=simple
 User=aquamind
 WorkingDirectory=/opt/aquamind
-ExecStart=/opt/aquamind/edge-pi --config /opt/aquamind/configs/edge.yaml
+ExecStart=/opt/aquamind/edge-pi --config /opt/aquamind/edge/configs/edge.pi.yaml
 Restart=on-failure
 RestartSec=5
 # Graceful shutdown: SIGTERM переводит железо в безопасное состояние.
@@ -16,3 +16,4 @@ TimeoutStopSec=15
 
 [Install]
 WantedBy=multi-user.target
+

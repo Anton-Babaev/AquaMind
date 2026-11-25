@@ -125,7 +125,7 @@ cd D:\VK\Golang\AquaMind\aquamind
 $env:GOOS="linux"
 $env:GOARCH="arm"
 $env:GOARM="7"
-go build -o bin\edge-pi ./cmd/edge
+go build -o bin\edge-pi ./edge/cmd/edge
 ```
 
 > ⚠️ **Главная грабля:** в PowerShell команда `set GOOS=linux` (cmd-синтаксис)
@@ -167,12 +167,15 @@ file /opt/aquamind/edge-pi
 
 ```
 /opt/aquamind/
-├── edge-pi               # бинарник (ARM)
-├── configs/edge.yaml
-├── scenarios/day_cycle.csv
-├── scenarios/no_flow.csv
-├── deploy/edge/aquamind-edge.service
-└── data/edge.db          # создастся автоматически
+├── edge-pi                    # бинарник (ARM)
+├── edge/
+│   ├── configs/edge.pi.yaml   # конфиг для Pi (gpio, пути, ::1/128)
+│   ├── scenarios/day_cycle.csv
+│   ├── scenarios/no_flow.csv
+│   └── deploy/aquamind-edge.service
+├── backend/                   # backend (если разворачиваем на Pi)
+├── contract/                  # общий контракт syncv1
+└── data/edge.db               # создастся автоматически
 ```
 
 > Если `scp` даёт `Permission denied` — на Pi выполните
@@ -206,44 +209,29 @@ Pi 3 B+ GPIO = 3.3 В, ≤16 мА на пин. Резистор 220–330 Ом �
 
 ---
 
-## 8. Настройка конфига на Pi
+## 8. Конфиг на Pi
 
-Отредактируйте `/opt/aquamind/configs/edge.yaml`:
+Для Pi в репозитории есть **готовый конфиг** `edge/configs/edge.pi.yaml`
+(в git, ничего править вручную не нужно). Он отличается от `edge.yaml`
+(ноутбук) тремя вещами:
 
-```yaml
-client_id: edge-01
+- `hardware: gpio` — реальные светодиоды;
+- `scenario.path: "edge/scenarios/day_cycle.csv"` — путь под структуру репозитория;
+- `allowed_cidrs` включает `::1/128` — kiosk-браузер на Pi ходит через IPv6.
 
-# На Pi — реальные светодиоды:
-hardware: gpio
+systemd-юнит (`edge/deploy/aquamind-edge.service`) уже указывает на этот файл:
 
-gpio:
-  heating: 17   # 🟡 подогрев, пин 11
-  alarm: 27     # 🔴 тревога,  пин 13
-  normal: 22    # 🟢 норма,    пин 15
-
-backend:
-  url: "http://<IP-ноутбука-с-backend>:8080"   # адрес Backend-заглушки/Романа
-  sync_interval: 10s
-  request_timeout: 5s
-  batch_size: 100
-
-polling:
-  interval: 2s
-
-scenario:
-  path: "scenarios/day_cycle.csv"
-  speed: 60
-  loop: true
-
-storage:
-  path: "data/edge.db"
+```
+ExecStart=/opt/aquamind/edge-pi --config /opt/aquamind/edge/configs/edge.pi.yaml
+WorkingDirectory=/opt/aquamind
 ```
 
 > Пути в конфиге относительные — сервис запускается с `WorkingDirectory=/opt/aquamind`,
-> поэтому `scenarios/...` и `data/...` разрешаются относительно `/opt/aquamind`.
+> поэтому `edge/scenarios/...` и `data/...` разрешаются относительно `/opt/aquamind`.
 >
-> С Этапа 5 `configs/edge.yaml` **реально читается** (YAML-парсер). Env-переменные
-> `AQUAMIND_*` остаются как override (важнее файла).
+> Если нужно поменять адрес backend — правьте `backend.url` в
+> `edge/configs/edge.pi.yaml` и коммитьте (или переопределяйте через env
+> `AQUAMIND_*`, они важнее файла).
 
 ---
 
@@ -294,7 +282,7 @@ edge started: client_id=edge-01 hardware=gpio scenario=scenarios/day_cycle.csv .
 
 ```bash
 # на Pi
-sudo cp /opt/aquamind/deploy/edge/aquamind-edge.service /etc/systemd/system/
+sudo cp /opt/aquamind/edge/deploy/aquamind-edge.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now aquamind-edge
 ```
@@ -417,14 +405,19 @@ sudo raspi-config
 ```powershell
 # на ноутбуке (PowerShell)
 cd D:\VK\Golang\AquaMind\aquamind
-$env:GOOS="linux"; $env:GOARCH="arm"; $env:GOARM="7"; go build -o bin\edge-pi ./cmd/edge
+$env:GOOS="linux"; $env:GOARCH="arm"; $env:GOARM="7"; go build -o bin\edge-pi ./edge/cmd/edge
 scp bin\edge-pi aquamind@192.168.1.101:/opt/aquamind/edge-pi
 ```
 
 ```bash
-# на Pi
+# на Pi (если менялся код — обновить и его)
+cd /opt/aquamind && sudo git fetch --all --tags && sudo git reset --hard origin/master
+sudo chown -R aquamind:aquamind /opt/aquamind
 sudo systemctl restart aquamind-edge
 ```
+
+> Конфиг Pi (`edge/configs/edge.pi.yaml`) и systemd-юнит теперь **в git** —
+> после `reset --hard` ничего вручную править не нужно.
 
 > Если `scp` даёт `Permission denied` — `sudo chown aquamind:aquamind /opt/aquamind/edge-pi`.
 >
@@ -469,7 +462,7 @@ python3 -c "from gpiozero import LED; from time import sleep; l=LED(17); l.on();
       `file` на Pi → `ELF ... ARM`.
 - [ ] Бинарник лежит в `/opt/aquamind/edge-pi` (в корне, не в `bin/`).
 - [ ] Светодиоды подключены через резисторы (17/27/22 → GND).
-- [ ] В `configs/edge.yaml` стоит `hardware: gpio`.
+- [ ] Сервис запускается с `--config edge/configs/edge.pi.yaml` (`hardware: gpio`).
 - [ ] Ручной запуск `sudo ./edge-pi` зажигает светодиоды по сценарию.
 - [ ] systemd-сервис `aquamind-edge` включён и в статусе `active (running)`.
 - [ ] `curl localhost:8081/api/state` отдаёт JSON.
