@@ -1,10 +1,25 @@
-# Конфигурация Backend (минимальный MVP).
+# Конфигурация Backend-сервиса.
+#
+# Секреты (token, dsn) на хостинге задаются через переменные окружения:
+#   AQUAMIND_BACKEND_POSTGRES_DSN
+#   AQUAMIND_BACKEND_TG_TOKEN
+#   AQUAMIND_BACKEND_TG_CHAT_ID
+# Значения в этом файле — для локальной разработки.
 
 listen: ":8080"
 
 postgres:
   dsn: "postgres://aquamind:aquamind@localhost:5432/aquamind?sslmode=disable"
+  max_conns: 10
+  connect_timeout: "5s"
 
 telegram:
-  token: ""                 # токен бота
-  chat_id: ""               # чат фермера
+  token: ""                 # токен бота от @BotFather (секрет!)
+  chat_id: ""               # чат/канал фермера
+  timeout: "10s"
+  enabled: false            # true — включить отправку в Telegram
+
+notify:
+  cooldown: "5m"            # антиспам: не чаще одного raised на тип за 5 минут
+  notify_cleared: true      # отправлять сообщение о восстановлении
+

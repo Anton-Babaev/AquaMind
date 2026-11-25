@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AquaMind — удалённый мониторинг</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🐟</span>
+      <span>AquaMind</span>
+    </div>
+    <div class="controls">
+      <label for="clientSelect">Устройство:</label>
+      <select id="clientSelect"></select>
+      <span id="connStatus" class="status status--idle">—</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="cards" id="cards">
+      <div class="card">
+        <div class="card__label">Температура</div>
+        <div class="card__value" id="valTemp">—</div>
+        <div class="card__unit">°C</div>
+      </div>
+      <div class="card">
+        <div class="card__label">Поток</div>
+        <div class="card__value" id="valFlow">—</div>
+        <div class="card__unit">л/мин</div>
+      </div>
+      <div class="card">
+        <div class="card__label">Кислород</div>
+        <div class="card__value" id="valO2">—</div>
+        <div class="card__unit">мг/л</div>
+      </div>
+      <div class="card">
+        <div class="card__label">pH</div>
+        <div class="card__value" id="valPH">—</div>
+        <div class="card__unit"></div>
+      </div>
+    </section>
+
+    <section class="actuators" id="actuators">
+      <span class="badge" id="badgeNormal">Норма</span>
+      <span class="badge" id="badgeHeating">Нагрев</span>
+      <span class="badge" id="badgeAlarm">Авария</span>
+      <span class="badge" id="badgeSafe">Безопасный режим</span>
+      <span class="updated" id="updatedAt"></span>
+    </section>
+
+    <section class="panel">
+      <h2>История показаний</h2>
+      <div class="chart-controls">
+        <button data-range="1h" class="range-btn">1 ч</button>
+        <button data-range="6h" class="range-btn">6 ч</button>
+        <button data-range="24h" class="range-btn active">24 ч</button>
+        <button data-range="all" class="range-btn">Всё</button>
+      </div>
+      <canvas id="chart" height="260"></canvas>
+    </section>
+
+    <section class="panel">
+      <h2>Алерты</h2>
+      <table class="alerts">
+        <thead>
+          <tr><th>Время</th><th>Тип</th><th>Уровень</th><th>Сообщение</th><th>Состояние</th></tr>
+        </thead>
+        <tbody id="alertsBody">
+          <tr><td colspan="5" class="empty">Нет данных</td></tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

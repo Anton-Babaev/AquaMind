@@ -11,6 +11,12 @@
 # Локальные конфиги с секретами
 configs/*.local.yaml
 
+# Файлы с секретами (env)
+.env
+*.env
+!*.env.example
+!env.example
+
 # IDE
 .idea/
 .vscode/
@@ -22,6 +28,11 @@ configs/*.local.yaml
 # Учебные материалы куратора (не часть проекта)
 /Lessons/
 
+# Личные файлы для ИИ-агента (не часть проекта)
+/docs/AI_PROMPT.md
+/docs/AI_CONTEXT.md
+
 # Покрытие тестов
 coverage.out
 coverage.html
+

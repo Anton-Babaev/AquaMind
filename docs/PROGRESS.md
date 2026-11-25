@@ -1,5 +1,9 @@
 # AquaMind — карта проекта и статус
 
+> **Быстрый старт для ИИ-агента:** сначала прочитай D:\VK\Golang\AquaMind\aquamind\docs\AI_PROMPT.md
+> (компактная machine-oriented карта проекта, ~90% понимания за один проход).
+> Этот файл — подробная история этапов, коммитов и граблей; читай по необходимости.
+>
 > Этот файл — точка входа для продолжения работы. Прочитай его первым.
 > Дипломный проект: автоматизация рыбной фермы (УЗВ) на Raspberry Pi 3B+.
 > Работают два человека. **Наша зона — Edge-контроллер на Raspberry Pi (Go).**
@@ -7,13 +11,16 @@
 
 ## Где мы сейчас (для продолжения в новом чате)
 
-- **Последний коммит:** `fc33c6d` — «feat(edge): веб-интерфейс (дашборд+пороги),
-  O2/pH-пороги и алерты, индикация датчиков» (запушен в origin/master).
-  Включает Этап 6 (веб-интерфейс) и Этап 6.1 (доработки UI и порогов).
-  Рабочее дерево чистое, `master` == `origin/master`.
-- **Готово:** Этапы 1–6.1 (домен+политики, Control+Poller+console, SQLite+Sync+
+- **Последний коммит:** `15d36ca` — «docs+ui: инструкция Pi под Desktop/kiosk,
+  убраны надписи снят/поднят в истории алертов, обновлён PROGRESS (этап 7.1)»
+  (запушен в origin/master). Рабочее дерево чистое, `master` == `origin/master`.
+  - Предыдущие ключевые коммиты: `2b70706` (этап 7 — kiosk), `b3c422a`
+    (актуализация статуса), `fc33c6d` (этап 6 + 6.1 — веб-интерфейс и пороги),
+    `cac9d62` (этап 5 — YAML-парсер), `cfb1363` (этап 4.1 — тесты + Makefile).
+- **Готово:** Этапы 1–8 (домен+политики, Control+Poller+console, SQLite+Sync+
   Backend-заглушка, GPIO на Pi + README + инструкция по Pi, YAML-парсер,
-  веб-интерфейс дашборд+пороги).
+  веб-интерфейс дашборд+пороги, kiosk на Pi, мелкие правки UI/документации,
+  **полноценный Backend: PostgreSQL + Telegram** — см. Этап 8).
 - **Добавлено после Этапа 4 (закоммичено в `cfb1363`):**
   - Тесты `backendclient` (`client_test.go`, 6 кейсов на `httptest`: успех,
     500, битый JSON, отмена ctx, таймаут, отказ соединения).
@@ -167,10 +174,12 @@ SQLite и досылаются на Backend по HTTP с дедупликаци�
 ## Технологический стек (Edge)
 
 - **Go** (на ноутбуке go1.27.3 windows/amd64; на Pi — Raspberry Pi OS).
+  В `go.mod` директива `go 1.26.0` (минимальная версия языка для модуля).
 - **Модуль:** `github.com/Anton-Babaev/AquaMind`
 - **Репозиторий:** https://github.com/Anton-Babaev/AquaMind.git
 - **SQLite:** `modernc.org/sqlite` (чистый Go, без CGO — важно для ARM).
 - **GPIO:** `go-rpio` (чистый Go, без CGO) — для Этапа 4.
+- **YAML:** `gopkg.in/yaml.v3` (чистый Go) — для парсера конфига (Этап 5).
 - **Архитектура:** Clean Architecture, слои `delivery → usecase → adapter`,
   порты объявляются в `usecase/<сценарий>/ports.go`, реализации — в `adapter/`.
 - **Общий код между сервисами:** только `internal/contract/syncv1`.
@@ -281,7 +290,8 @@ ph_low: 6.5, ph_high: 8.5
   payload), MarkSent убирает из pending, пустые ids, лимит PendingOutbox,
   round-trip порогов, upsert порогов, отмена ctx.
 - `Makefile`: `test-race` (`go test -race ./...`), `cover` (coverage.out +
-  coverage.html), `clean` чистит coverage-файлы.
+  coverage.html), `clean` удаляет каталог `bin/` (coverage-файлы `clean`
+  **не** трогает — их удаляют вручную при необходимости).
 - Все новые тесты зелёные (`go test ./...`), `go vet ./...` чисто.
 
 ### ✅ Этап 5 — YAML-парсер конфига (готово, закоммичено `cac9d62`)
@@ -315,6 +325,8 @@ ph_low: 6.5, ph_high: 8.5
     через `//go:embed static` (один бинарник, ничего не копировать на Pi).
   - `handlers.go` — JSON API:
     - `GET /api/state` — показания + состояние выходов + активные алерты.
+    - `GET /api/alerts?limit=N` — история событий алертов (raised/cleared),
+      свежие первыми (источник — `AlertHistoryProvider`, реализуется SQLite).
     - `GET /api/thresholds` — текущие пороги.
     - `POST /api/thresholds` — сохранить пороги (валидация `Thresholds.Validate`).
     - DTO отделены от домена (`stateDTO`, `readingDTO`, `actuatorsDTO`, `alertDTO`).
@@ -329,8 +341,9 @@ ph_low: 6.5, ph_high: 8.5
   `LastAlerts() []Alert` (копия) — для UI.
 - **`domain.Thresholds`**: добавлены JSON-теги (`temp_low`, `flow_min`, ...),
   чтобы API отдавал snake_case.
-- **`cmd/edge/main.go`**: `edgehttp.NewServer(cfg.ControlPlane.Listen, ctrl, store)`
-  запускается в отдельной горутине рядом с SyncWorker и Poller.
+- **`cmd/edge/main.go`**: `edgehttp.NewServer(cfg.ControlPlane.Listen, ctrl, store, store)`
+  (4 аргумента: `listen`, `state`=ControlUsecase, `thresholds`=хранилище,
+  `history`=хранилище) запускается в отдельной горутине рядом с SyncWorker и Poller.
 - **Проверено вживую** (ноутбук, `hardware: console`): `GET /api/state` вернул
   корректный JSON (temp 24.1, flow 12, o2 7.2, ph 7.2, normal=true).
   `go build ./...`, `go vet ./...`, `go test ./...` — зелёные.
@@ -430,7 +443,8 @@ ph_low: 6.5, ph_high: 8.5
 - **История алертов на дашборде:** убраны непонятные надписи «снят»/«поднят»
   рядом со временем события. В `static/app.js` (`makeAlertItem`) для истории
   теперь выводится только время (`fmtTime(al.at)`), без текста состояния.
-  Активные алерты по-прежнему помечаются «активен».
+  Активные алерты по-прежнему помечаются «активен». Данные истории берутся из
+  `GET /api/alerts?limit=N` (см. Этап 6).
 - **`docs/RASPBERRY_PI_SETUP.md` переписан под актуальный процесс:**
   - Прошивка **флешки (microSD)** через Raspberry Pi Imager — образ
     **Raspberry Pi OS Desktop (64-bit)** вместо Lite (нужен браузер для kiosk).
@@ -444,6 +458,47 @@ ph_low: 6.5, ph_high: 8.5
     keyring, kiosk), чек-лист обновлён под Desktop + kiosk.
 - **Применение на Pi:** статика встроена в бинарник (`//go:embed`) → пересобрать
   `edge-pi`, залить `scp`, `sudo systemctl restart aquamind-edge`.
+
+### ✅ Этап 8 — Backend: PostgreSQL + Telegram (готово, зона Романа)
+Полноценный Backend вместо заглушки `cmd/backend`. Clean Architecture,
+слои `delivery → usecase → adapter`, порты в `usecase/*/ports.go`.
+
+- **Конфиг** `internal/backend/config/config.go` — по образцу Edge:
+  дефолты → YAML (`configs/backend.yaml`) → env `AQUAMIND_BACKEND_*`.
+  Секции: `listen`, `postgres` (dsn/max_conns/connect_timeout), `telegram`
+  (token/chat_id/timeout/enabled), `notify` (cooldown/notify_cleared).
+  Секреты (DSN, токен) на хостинге — только через env. 10 тестов.
+- **Домен** `internal/backend/domain/domain.go` — `Reading`, `ActuatorState`,
+  `Alert` (типы/уровни/состояния как в Edge), `Tick`.
+- **PostgreSQL** `internal/backend/adapter/postgres/` (драйвер `pgx/v5`):
+  - `migrations/001_init.sql` — таблицы `clients`, `ticks`, `alerts`;
+    уникальный индекс `(client_id, at_ms)` на `ticks` для дедупликации.
+  - `repository.go` — `Open` (пул + ping + миграции из `//go:embed`),
+    `SaveBatch` (одна транзакция: upsert клиента, вставка тиков с
+    `ON CONFLICT DO NOTHING ... RETURNING id`, алерты только для новых тиков;
+    возвращает accepted/duplicates), `RecentTicks`, `Ping`.
+  - `errors.go` — `isNoRows` (pgx.ErrNoRows → дубликат).
+- **Usecase ingest** `internal/backend/usecase/ingest/` — `Handle(SyncBatch)`:
+  DTO→домен, `SaveBatch`, уведомления только по алертам из принятых тиков,
+  возврат `SyncAck`. Порты `Store`, `Notifier`. 4 теста (fake store/notifier).
+- **Usecase notify** `internal/backend/usecase/notify/` — антиспам:
+  raised отправляется один раз в пределах `cooldown` на `(client, type)`;
+  cleared сбрасывает состояние и (если включено) шлёт «восстановлено».
+  Состояние в памяти (MVP). 5 тестов.
+- **Адаптер Telegram** `internal/backend/adapter/telegram/sender.go` —
+  `sendMessage` через `net/http`, `baseURL` подменяется в тестах. 3 теста
+  на `httptest` (успех, ok=false, HTTP 401).
+- **HTTP delivery** `internal/backend/delivery/http/server.go` —
+  `POST /api/v1/sync` (приём пакета, 500 при ошибке → Edge повторит, дедуп
+  защитит), `GET /healthz` (ping БД).
+- **`cmd/backend/main.go`** — DI: postgres → notifier (Telegram или лог-заглушка)
+  → ingest → HTTP-сервер; graceful shutdown по SIGTERM.
+- **Деплой:** `deploy/backend/Dockerfile` (multi-stage, CGO off, alpine),
+  `deploy/backend/env.example` (пример env, `.env` в `.gitignore`).
+- **Проверено:** `go build ./...`, `go vet ./...`, `go test ./...` — зелёные
+  (все тесты backend проходят без реальной БД/Telegram).
+- **Осталось (по желанию):** API для Frontend (чтение истории/графиков),
+  SMS-канал, персистентное состояние антиспама в БД.
 
 ### Опционально (если успеем)
 - SafetyWatchdog (Safe Mode по устареванию данных) — `delivery/watchdog`
@@ -481,7 +536,7 @@ Env-переменные: `AQUAMIND_SCENARIO`, `AQUAMIND_POLL_INTERVAL`,
 ## Структура каталогов (ключевое)
 
 ```
-cmd/{edge,backend,frontend}/        # три программы
+cmd/{edge,backend,frontend}/        # три программы (frontend — пока .gitkeep)
 configs/{edge,backend}.yaml
 scenarios/{day_cycle,no_flow}.csv
 deploy/edge/aquamind-edge.service
@@ -491,13 +546,21 @@ internal/
     config/
     domain/ + domain/policy/
     usecase/{control,alert,safety,settings,uplink}
+      # реализованы: control, alert; safety/settings/uplink — пока .gitkeep
     delivery/{poller,watchdog,syncworker,http}
+      # реализованы: poller, syncworker, http; watchdog — пока .gitkeep
     adapter/
       hardware/{simulation,gpio,console,modbus}
+        # реализованы: simulation, gpio, console; modbus — пока .gitkeep
       storage/{sqlite,memory}
       backendclient/
-  backend/                          # зона Романа (пока только заглушка в cmd/backend)
-  frontend/
+  backend/                          # зона Романа (реализовано, Этап 8):
+    config/                         #   конфиг (дефолты→YAML→env)
+    domain/                         #   Reading, ActuatorState, Alert, Tick
+    usecase/{ingest,notify}/        #   приём пакетов + антиспам-уведомления
+    adapter/{postgres,telegram}/    #   pgx/v5 + миграции; Telegram sendMessage
+    delivery/http/                  #   POST /api/v1/sync, GET /healthz
+  frontend/                         # пока .gitkeep
 ```
 
 ## Проверки перед коммитом
