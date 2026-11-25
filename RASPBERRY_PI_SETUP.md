@@ -258,14 +258,14 @@ sudo usermod -aG gpio aquamind
 
 ```bash
 cd /opt/aquamind
-sudo ./edge-pi
+sudo ./edge-pi --config edge/configs/edge.pi.yaml
 ```
 
 Ожидаемый вывод:
 
 ```
 hardware: gpio (BCM heating=17 alarm=27 normal=22)
-edge started: client_id=edge-01 hardware=gpio scenario=scenarios/day_cycle.csv ...
+edge started: client_id=edge-01 hardware=gpio scenario=edge/scenarios/day_cycle.csv ...
 ```
 
 Светодиоды должны реагировать на сценарий (например, `no_flow.csv` →
@@ -419,8 +419,23 @@ sudo systemctl restart aquamind-edge
 > Конфиг Pi (`edge/configs/edge.pi.yaml`) и systemd-юнит теперь **в git** —
 > после `reset --hard` ничего вручную править не нужно.
 
-> Если `scp` даёт `Permission denied` — `sudo chown aquamind:aquamind /opt/aquamind/edge-pi`.
->
+### Если `scp` в `/opt/aquamind/edge-pi` даёт `Permission denied`
+
+Бывает, когда файл/каталог принадлежит root или `scp` не может перезаписать
+занятый бинарник. Надёжный обход — залить во `/tmp` и переместить с `sudo`:
+
+```powershell
+# на ноутбуке (PowerShell)
+scp bin\edge-pi aquamind@192.168.1.101:/tmp/edge-pi
+```
+
+```bash
+# на Pi
+sudo mv /tmp/edge-pi /opt/aquamind/edge-pi
+sudo chmod +x /opt/aquamind/edge-pi
+sudo systemctl restart aquamind-edge
+```
+
 > Статика веб-интерфейса **встроена в бинарник** (`//go:embed`), поэтому после
 > изменения HTML/CSS/JS достаточно пересобрать и залить `edge-pi` — отдельно
 > копировать `static/` не нужно.
@@ -463,7 +478,8 @@ python3 -c "from gpiozero import LED; from time import sleep; l=LED(17); l.on();
 - [ ] Бинарник лежит в `/opt/aquamind/edge-pi` (в корне, не в `bin/`).
 - [ ] Светодиоды подключены через резисторы (17/27/22 → GND).
 - [ ] Сервис запускается с `--config edge/configs/edge.pi.yaml` (`hardware: gpio`).
-- [ ] Ручной запуск `sudo ./edge-pi` зажигает светодиоды по сценарию.
+
+- [ ] Ручной запуск `sudo ./edge-pi --config edge/configs/edge.pi.yaml` зажигает светодиоды по сценарию.
 - [ ] systemd-сервис `aquamind-edge` включён и в статусе `active (running)`.
 - [ ] `curl localhost:8081/api/state` отдаёт JSON.
 - [ ] Kiosk-автозапуск настроен, после `reboot` дашборд открывается сам.
