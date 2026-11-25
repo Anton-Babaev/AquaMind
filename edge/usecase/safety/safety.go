@@ -21,6 +21,8 @@ type Usecase struct {
 	controller SafeModeController
 	staleAfter time.Duration
 	now        func() time.Time // подменяемое время (для тестов)
+
+	startedAt time.Time // момент первой проверки (для grace period на старте)
 }
 
 // New создаёт Usecase.
@@ -38,17 +40,26 @@ func New(clock ReadingClock, controller SafeModeController, staleAfter time.Dura
 // переключает Safe Mode. Возвращает true, если система сейчас в Safe Mode.
 //
 // Правила:
-//   - чтений ещё не было            → Safe Mode (данных нет);
+//   - чтений ещё не было, но с запуска прошло < staleAfter → grace period,
+//     Safe Mode НЕ включаем (система только стартовала, первый Tick ещё не успел);
+//   - чтений ещё не было, и прошло >= staleAfter → Safe Mode (данных нет);
 //   - последнее чтение старше порога → Safe Mode (данные устарели);
 //   - иначе                          → нормальный режим.
 func (u *Usecase) Check(ctx context.Context) (bool, error) {
+	now := u.now()
+	if u.startedAt.IsZero() {
+		u.startedAt = now
+	}
+
 	reading, ok := u.clock.LastReading()
 
 	safe := false
 	if !ok {
-		// Данных ещё не было — считаем, что доверять нечему.
-		safe = true
-	} else if u.now().Sub(reading.At) > u.staleAfter {
+		// Данных ещё не было. Даём grace period на старте: первый Tick поллера
+		// может занять время (инициализация SQLite на SD-карте и т.п.), и без
+		// этого watchdog ложно включает Safe Mode сразу после запуска.
+		safe = now.Sub(u.startedAt) >= u.staleAfter
+	} else if now.Sub(reading.At) > u.staleAfter {
 		// Данные устарели.
 		safe = true
 	}

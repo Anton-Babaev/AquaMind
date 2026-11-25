@@ -36,12 +36,20 @@ func TestCheck(t *testing.T) {
 		name    string
 		reading domain.SensorReading
 		ok      bool
+		elapsed time.Duration // сколько прошло с момента запуска (первой проверки)
 		want    bool
 	}{
 		{
-			name: "нет данных — Safe Mode",
-			ok:   false,
-			want: true,
+			name:    "нет данных, только стартовали — grace period, не Safe Mode",
+			ok:      false,
+			elapsed: 0,
+			want:    false,
+		},
+		{
+			name:    "нет данных, grace period истёк — Safe Mode",
+			ok:      false,
+			elapsed: staleAfter,
+			want:    true,
 		},
 		{
 			name:    "свежие данные — норма",
@@ -68,6 +76,9 @@ func TestCheck(t *testing.T) {
 			clock := &fakeClock{reading: tt.reading, ok: tt.ok}
 			ctrl := &fakeController{}
 			u := New(clock, ctrl, staleAfter)
+			// startedAt выставляем в прошлое на elapsed, чтобы смоделировать
+			// прошедшее с запуска время.
+			u.startedAt = now.Add(-tt.elapsed)
 			u.now = func() time.Time { return now }
 
 			got, err := u.Check(context.Background())

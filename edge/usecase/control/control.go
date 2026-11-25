@@ -80,18 +80,20 @@ func (c *ControlUsecase) Tick(ctx context.Context) error {
 		return err
 	}
 
-	// 8. Сохраняем одной транзакцией: показание + состояние + алерты + outbox.
-	if err := c.store.SaveTick(ctx, reading, state, events); err != nil {
-		return err
-	}
-
-	// 9. Обновляем внутреннее состояние.
+	// 8. Обновляем внутреннее состояние ДО записи в БД: показание уже прочитано
+	// успешно, и watchdog должен видеть его свежим, даже если запись в SQLite
+	// временно замедлилась или упала (иначе — ложный Safe Mode «данные устарели»).
 	c.mu.Lock()
 	c.state = state
 	c.lastReading = reading
 	c.lastAlerts = activeAlerts
 	c.hasReading = true
 	c.mu.Unlock()
+
+	// 9. Сохраняем одной транзакцией: показание + состояние + алерты + outbox.
+	if err := c.store.SaveTick(ctx, reading, state, events); err != nil {
+		return err
+	}
 
 	return nil
 }
