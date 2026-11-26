@@ -19,7 +19,9 @@ gpio:
   normal: 22    # 🟢 норма,    физ. пин 15
 
 backend:
-  url: "http://localhost:8080"
+  # Публичный адрес Backend-сервера (через nginx на порту 80).
+  # Малина на ферме ходит в интернет по Wi-Fi, поэтому указываем внешний IP.
+  url: "http://5.63.153.76"
   sync_interval: 10s        # тик SyncWorker
   request_timeout: 5s
   batch_size: 100           # максимум записей в одном пакете
@@ -66,3 +68,4 @@ thresholds:
   # pH (допустимый диапазон)
   ph_low: 6.5
   ph_high: 8.5
+

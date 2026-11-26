@@ -7,9 +7,9 @@
 # Логи:   docker compose -f backend/deploy/docker-compose.yml logs -f backend
 # Стоп:   docker compose -f backend/deploy/docker-compose.yml down
 #
-# Порты: backend слушает 8080 на хосте (наружу). PostgreSQL НЕ публикуется
-# наружу — доступен только внутри docker-сети (безопасно).
-
+# Порты: backend слушает 8080 ВНУТРИ контейнера и публикуется только на
+# localhost сервера (127.0.0.1:8080) — снаружи его закрывает nginx (порт 80).
+# PostgreSQL НЕ публикуется наружу — доступен только внутри docker-сети.
 services:
   postgres:
     image: postgres:16-alpine
@@ -42,7 +42,9 @@ services:
       AQUAMIND_BACKEND_TG_CHAT_ID: ${AQUAMIND_BACKEND_TG_CHAT_ID:-}
       AQUAMIND_BACKEND_NOTIFY_COOLDOWN: ${AQUAMIND_BACKEND_NOTIFY_COOLDOWN:-5m}
     ports:
-      - "8080:8080"
+      # Только на localhost: снаружи доступ идёт через nginx (порт 80).
+      - "127.0.0.1:8080:8080"
 
 volumes:
   pgdata:
+
